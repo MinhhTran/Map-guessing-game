@@ -8,11 +8,12 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Map Guessing Game - World Explorer")
-        self.resize(1024, 768)
+        self.resize(1280, 960)
         
         # 1. Initialize Data
         self.data_manager = DataManager()
         self.data_manager.load_from_json('countries.json')
+        countries = self.data_manager.countries_dict
         
         # 2. Setup UI Layout
         self.central_widget = QWidget()
@@ -26,7 +27,14 @@ class MainWindow(QMainWindow):
         
         # 3. Add the Map View
         self.map_view = MapView()
+        self.map_view.render_map(countries)
         self.layout.addWidget(self.map_view)
+    
+    def resizeEvent(self, event):
+        #Ensure the map resizes dynamically when the window changes size
+        super().resizeEvent(event)
+        if hasattr(self, 'map_view') and self.map_view.scene.items():
+            self.map_view.fitInView(self.map_view.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
