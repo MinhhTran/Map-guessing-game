@@ -7,7 +7,7 @@ class DataManager:
         self.countries_dict = {}  # Key: iso_code, Value: Country object
 
     def load_from_json(self, path):
-        """Parses the JSON file into Country objects[cite: 53]."""
+        # Parses the JSON file into Country objects
         try:
             with open(path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
