@@ -15,7 +15,7 @@ class MapView(QGraphicsView):
         self.setBackgroundBrush(Qt.GlobalColor.blue)
 
     def svg_to_qpath(self, path_string, existing_qpath=None):
-        """Converts an SVG path string and appends it to a QPainterPath."""
+        #Converts an SVG path string and appends it to a QPainterPath.
         q_path = existing_qpath if existing_qpath is not None else QPainterPath()
         
         try:
@@ -89,3 +89,18 @@ class MapView(QGraphicsView):
         # Fit the view
         self.setSceneRect(self.scene.itemsBoundingRect())
         self.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+    def wheelEvent(self, event):
+        # Allow zooming in and out with the mouse wheel.
+        # Define how fast the map zooms
+        zoom_in_factor = 1.15
+        zoom_out_factor = 1.0 / zoom_in_factor
+
+        # event.angleDelta().y() is positive if scrolling up (zoom in)
+        if event.angleDelta().y() > 0:
+            zoom_factor = zoom_in_factor
+        else:
+            zoom_factor = zoom_out_factor
+
+        # Apply the scaling to the view
+        self.scale(zoom_factor, zoom_factor)
