@@ -10,7 +10,7 @@ class Country:
         self.code = code.lower()  # Matches SVG 'id' (e.g., 'dz')
 
     def get_info(self):
-        """Returns a formatted string for the 'Explore' mode[cite: 48]."""
+        # Returns a formatted string for the 'explore' mode
         lang_list = ", ".join(self.languages.values())
         curr_list = ", ".join([c['name'] for c in self.currencies.values()])
         return (f"Country: {self.name}\nCapital: {self.capital}\n"

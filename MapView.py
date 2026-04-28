@@ -1,5 +1,5 @@
 import xml.etree.ElementTree as ET
-from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene
+from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsItem
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPainter, QPainterPath
 from CountryItem import CountryItem
@@ -43,7 +43,12 @@ class MapView(QGraphicsView):
                         segment.end.real, segment.end.imag
                     )
                 elif isinstance(segment, Arc):
-                    q_path.lineTo(segment.end.real, segment.end.imag)
+                    # Approximate the arc by sampling points
+                    # increase range -> higher detail
+                    for i in range(1, 11):
+                        t = i / 10.0
+                        point = segment.point(t)
+                        q_path.lineTo(point.real, point.imag)
         except Exception as e:
             print(f"Path parsing error: {e}")
             
@@ -84,6 +89,7 @@ class MapView(QGraphicsView):
                 # create the item
                 if not master_qpath.isEmpty():
                     item = CountryItem(country_obj, master_qpath)
+                    item.setCacheMode(QGraphicsItem.CacheMode.DeviceCoordinateCache)
                     self.scene.addItem(item)
 
         # Fit the view
@@ -95,6 +101,11 @@ class MapView(QGraphicsView):
         # Define how fast the map zooms
         zoom_in_factor = 1.15
         zoom_out_factor = 1.0 / zoom_in_factor
+        min_zoom = 0.5
+        max_zoom = 4
+
+        # Current scale factor
+        current_zoom = self.transform().m11()
 
         # event.angleDelta().y() is positive if scrolling up (zoom in)
         if event.angleDelta().y() > 0:
@@ -102,5 +113,14 @@ class MapView(QGraphicsView):
         else:
             zoom_factor = zoom_out_factor
 
+        # Calculate hypothetical new zoom
+        new_zoom = current_zoom * zoom_factor
+
+        # Clamp the zoom factor if it exceeds limits
+        if new_zoom < min_zoom:
+            zoom_factor = min_zoom / current_zoom
+        elif new_zoom > max_zoom:
+            zoom_factor = max_zoom / current_zoom
+            
         # Apply the scaling to the view
         self.scale(zoom_factor, zoom_factor)
