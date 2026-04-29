@@ -2,7 +2,7 @@ import sys
 from PyQt6.QtWidgets import (QMainWindow, QApplication, QVBoxLayout, QWidget,
                              QLabel, QHBoxLayout, QLineEdit, QPushButton,
                              QStackedWidget, QDialog, QMessageBox)
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from DataManager import DataManager
 from MapView import MapView
 from GameEngine import GameEngine
@@ -86,11 +86,10 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.map_view)
         
         # (In progress) Connect the MapView's click event to MainWindow.
-        # Add a custom signal to MapView later called 'country_clicked':
-        # self.map_view.country_clicked.connect(self.on_map_clicked)
+        self.map_view.country_clicked.connect(self.on_map_clicked)
 
     def start_mode(self, mode_name):
-        # Switche to the map screen and set up the chosen mode
+        # Switch to the map screen and set up the chosen mode
         self.engine.set_mode(mode_name)
         self.mode_label.setText(f"Current Mode: {mode_name.capitalize()}")
         
@@ -114,7 +113,8 @@ class MainWindow(QMainWindow):
             country_data = self.engine.explore_country(country_code)
             if country_data:
                 # Paint the country on the map
-                self.map_view.highlight_country(country_code, "blue")
+                if hasattr(self.map_view, 'highlight_country'):
+                    self.map_view.highlight_country(country_code, "green")
                 
                 # Show the pop-up information window
                 info_text = (
@@ -123,7 +123,7 @@ class MainWindow(QMainWindow):
                     f"Population: {country_data.population:,}\n"
                     f"Area: {country_data.area:,.0f} km²"
                 )
-                QMessageBox.information(self, "Country Discovered!", info_text)
+                QTimer.singleShot(150, lambda: QMessageBox.information(self, "Country Discovered!", info_text))
 
     def resizeEvent(self, event):
         super().resizeEvent(event)

@@ -1,11 +1,14 @@
 import xml.etree.ElementTree as ET
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsItem
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPainter, QPainterPath
 from CountryItem import CountryItem
 from svg.path import parse_path, Move, Line, CubicBezier, QuadraticBezier, Arc, Close
 
 class MapView(QGraphicsView):
+    # a signal that emit the country code string
+    country_clicked = pyqtSignal(str)
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self.scene = QGraphicsScene(self)
@@ -138,3 +141,38 @@ class MapView(QGraphicsView):
             
         # Apply the scaling to the view
         self.scale(zoom_factor, zoom_factor)
+
+    def mousePressEvent(self, event):
+        # Detect clicks and send the country code
+        super().mousePressEvent(event)
+        
+        # Check if the user used the left mouse button
+        if event.button() == Qt.MouseButton.LeftButton:
+            
+            # Find the item at the pixel the user clicked
+            clicked_item = self.itemAt(event.pos())
+            
+            # Check if they actually clicked a CountryItem
+            if isinstance(clicked_item, CountryItem):
+                
+                # Extract the country code
+                country_code = clicked_item.country_data.code
+                
+                # send signal for MainWindow
+                self.country_clicked.emit(country_code)
+
+    def mouseReleaseEvent(self, event):
+        # Detect a true click (not a drag) and send the country code
+        super().mouseReleaseEvent(event)
+        
+        if event.button() == Qt.MouseButton.LeftButton and hasattr(self, 'drag_start_pos'):
+            # 2. Calculate the distance the mouse moved between press and release
+            move_distance = (event.pos() - self.drag_start_pos).manhattanLength()
+            
+            # 3. If the mouse moved less than 5 pixels, treat it as a deliberate click
+            if move_distance < 5:
+                clicked_item = self.itemAt(event.pos())
+                
+                if isinstance(clicked_item, CountryItem):
+                    country_code = clicked_item.country_data.code
+                    self.country_clicked.emit(country_code)
