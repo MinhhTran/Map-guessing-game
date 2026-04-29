@@ -101,6 +101,9 @@ class MainWindow(QMainWindow):
         is_correct = self.engine.check_answer(guess_text)
         
         if is_correct:
+            #highlight the country
+            self.map_view.highlight_country(self.engine.current_target.code, "green")
+
             self.guess_input.clear()
             self.next_question()
         else:

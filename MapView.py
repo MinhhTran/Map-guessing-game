@@ -96,6 +96,20 @@ class MapView(QGraphicsView):
         self.setSceneRect(self.scene.itemsBoundingRect())
         self.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
+    def highlight_country(self, country_code, color_name="green"):
+        # Find a CountryItem in the scene by its country code and permanently change its color.
+        # Visually represent correctly guessed countries.
+        target_code = country_code.lower()
+        
+        # Iterate through all items currently drawn on the QGraphicsScene
+        for item in self.scene.items():
+            # Verify the item is a CountryItem before attempting to access custom properties
+            if isinstance(item, CountryItem):
+                if item.country_data.code == target_code:
+                    item.change_color(color_name)
+                    # Break out of the loop once done
+                    break
+
     def wheelEvent(self, event):
         # Allow zooming in and out with the mouse wheel.
         # Define how fast the map zooms
