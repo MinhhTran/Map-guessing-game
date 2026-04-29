@@ -89,7 +89,7 @@ class MapView(QGraphicsView):
                 # create the item
                 if not master_qpath.isEmpty():
                     item = CountryItem(country_obj, master_qpath)
-                    item.setCacheMode(QGraphicsItem.CacheMode.DeviceCoordinateCache)
+                    item.setCacheMode(QGraphicsItem.CacheMode.DeviceCoordinateCache) # need modify
                     self.scene.addItem(item)
 
         # Fit the view

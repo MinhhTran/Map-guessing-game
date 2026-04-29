@@ -12,7 +12,7 @@ class CountryItem(QGraphicsPathItem):
         self.setPen(QPen(QColor("white"), 0.5))
         self.setBrush(QColor("lightgray"))
         
-        # Define your color palette
+        # Define color palette
         self.default_color = QColor("lightgray")
         self.hover_color = QColor("lightblue")
 
