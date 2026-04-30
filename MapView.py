@@ -113,6 +113,14 @@ class MapView(QGraphicsView):
                     # Break out of the loop once done
                     break
 
+    def get_country_path(self, country_code):
+        """Retrieves the QPainterPath for a specific country code."""
+        # Find the CountryItem associated with this code
+        item = self.country_items.get(country_code)
+        if item:
+            return item.path() # Returns the QPainterPath
+        return None
+
     def wheelEvent(self, event):
         # Allow zooming in and out with the mouse wheel.
         # Define how fast the map zooms

@@ -8,6 +8,8 @@ class GameEngine:
         self.current_target = None
         self.score = 0
         self.time_left = 60 # Placeholder for time-based mode
+        self.session_queue = [] # remaining countries for shape quiz
+
         # Track progress separately for each game mode
         self.progress = {
             'explore': set(),
@@ -22,6 +24,10 @@ class GameEngine:
             self.current_mode = mode_name
             self.current_target = None
             # Code to reset self.score or self.time_left (not sure)
+            if mode_name == 'time':
+                self.time_left = 60
+            else:
+                self.time_left = 0
         else:
             raise ValueError(f"Invalid game mode: {mode_name}")
 
@@ -40,24 +46,30 @@ class GameEngine:
             
         return None
     
-    def start_shape_quiz(self):
-        # Select a random country that hasn't been guessed yet.
-        # Create a list of countries not in the progress set
-        self.set_mode('shape')
+    def start_quiz_session(self, mode_name):
+        # initialize the queue for shape and flag mode
+        self.set_mode(mode_name)
 
         available_countries = [
             country for country in self.countries_list 
-            if country.name not in self.progress['shape']
+            if country.name not in self.progress[mode_name]
         ]
         
-        if not available_countries:
-            self.current_target = None
-            return None # all countries have been guessed
-            
-        # Randomly select country from the remaining countries
-        self.current_target = random.choice(available_countries)
-        return self.current_target
+        # Fisher-Yates randomize
+        random.shuffle(available_countries)
+        self.session_queue = available_countries
+ 
+        return self.next_quiz_target()
 
+    def next_quiz_target(self):
+        # Pop the next country from the queue
+        if not self.session_queue:
+            self.current_target = None
+            return None # All countries guessed
+            
+        self.current_target = self.session_queue.pop()
+        return self.current_target
+    
     def check_answer(self, guess_text):
         # Compare the user's string input with self.current_target.name
         if self.current_target is None or self.current_mode is None:
@@ -66,8 +78,16 @@ class GameEngine:
         # Case-insensitive comparison and stripping whitespace
         target_name = self.current_target.name.strip().lower()
         user_guess = guess_text.strip().lower()
+        is_correct = False
         
         if user_guess == target_name:
+            is_correct = True
+        # Fuzzy match for Time Attack (Levenshtein distance)
+        elif self.current_mode == 'time':
+            pass 
+            '''Levenshtein threshold (later)'''
+
+        if is_correct:
             # Prevent duplicate selections
             self.progress[self.current_mode].add(self.current_target.name)
             self.score += 10 # placeholder scoring
@@ -79,7 +99,6 @@ class GameEngine:
         # Return one info from the current_target
         if self.current_target is None:
             return "No active country to guess."
-        
         return f"The capital of this country is {self.current_target.capital}."
     
     def get_progress_for_map(self, mode_name):

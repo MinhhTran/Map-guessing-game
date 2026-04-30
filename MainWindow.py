@@ -1,8 +1,10 @@
 import sys
 from PyQt6.QtWidgets import (QMainWindow, QApplication, QVBoxLayout, QWidget,
                              QLabel, QHBoxLayout, QLineEdit, QPushButton,
-                             QStackedWidget, QDialog, QMessageBox)
+                             QStackedWidget, QDialog, QMessageBox, QGraphicsView,
+                             QGraphicsScene, QGraphicsPathItem)
 from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QBrush, QColor
 from DataManager import DataManager
 from MapView import MapView
 from GameEngine import GameEngine
@@ -16,20 +18,33 @@ class MainWindow(QMainWindow):
         # 1. Initialize Data and Engine
         self.data_manager = DataManager()
         self.data_manager.load_from_json('countries.json')
-        countries = self.data_manager.countries_dict
-        self.engine = GameEngine(list(countries.values()))
+        countries_dict = self.data_manager.countries_dict
+        countries_list = list(countries_dict.values())
+        self.engine = GameEngine(countries_list)
         
         # 2. Main Layout using QStackedWidget
         self.stacked_widget = QStackedWidget()
         self.setCentralWidget(self.stacked_widget)
         
-        # Create the different screens
-        self.init_main_menu()
-        self.init_game_screen(countries)
+        # 3. Create separate mapss for separate progress
+        self.explore_map_view = MapView()
+        self.explore_map_view.render_map(countries_dict)
         
-        # Add screens to the stack
+        self.shape_map_view = MapView()
+        self.shape_map_view.render_map(countries_dict)
+
+        # 4. Initialize the quiz to save state
+        self.shape_dialog = ShapeQuizDialog(self, self.engine, self.shape_map_view)
+
+        # 5. Create the different screens
+        self.init_main_menu()
+        self.init_explore_screen()
+        self.init_shape_screen()
+        
+        # 6. Add screens to the stack
         self.stacked_widget.addWidget(self.menu_widget) # Index 0
-        self.stacked_widget.addWidget(self.game_widget) # Index 1
+        self.stacked_widget.addWidget(self.explore_widget) # Index 1
+        self.stacked_widget.addWidget(self.shape_widget) # Index 2
 
     def init_main_menu(self):
         # The very first window
@@ -62,50 +77,60 @@ class MainWindow(QMainWindow):
             btn.setFixedSize(300, 50)
             layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
-    def init_game_screen(self, countries):
-        # Create the screen containing the map and the back button
-        self.game_widget = QWidget()
-        layout = QVBoxLayout(self.game_widget)
+    def init_explore_screen(self):
+        self.explore_widget = QWidget()
+        layout = QVBoxLayout(self.explore_widget)
         
-        # Top bar with a Back Button
         top_bar = QHBoxLayout()
         back_btn = QPushButton("← Back to Menu")
-        back_btn.setFixedWidth(150)
         back_btn.clicked.connect(self.go_to_menu)
         
-        self.mode_label = QLabel("Mode: None")
+        top_bar.addWidget(back_btn)
+        top_bar.addWidget(QLabel("Mode: Explore"))
+        top_bar.addStretch()
+        
+        layout.addLayout(top_bar)
+        layout.addWidget(self.explore_map_view) # Add the Explore Map
+
+    def init_shape_screen(self):
+        self.shape_widget = QWidget()
+        layout = QVBoxLayout(self.shape_widget)
+        
+        top_bar = QHBoxLayout()
+        back_btn = QPushButton("← Back to Menu")
+        back_btn.clicked.connect(self.go_to_menu)
+        
+        # Button to re-open the hidden quiz dialog!
+        show_quiz_btn = QPushButton("Show Quiz Window")
+        show_quiz_btn.clicked.connect(self.shape_dialog.show)
         
         top_bar.addWidget(back_btn)
-        top_bar.addWidget(self.mode_label)
+        top_bar.addWidget(QLabel("Mode: Shape Quiz"))
+        top_bar.addWidget(show_quiz_btn)
         top_bar.addStretch()
+        
         layout.addLayout(top_bar)
-        
-        # Add Map View
-        self.map_view = MapView()
-        self.map_view.render_map(countries)
-        layout.addWidget(self.map_view)
-        
-        # (In progress) Connect the MapView's click event to MainWindow.
-        self.map_view.country_clicked.connect(self.on_map_clicked)
+        layout.addWidget(self.shape_map_view) # Add the Shape Map
 
     def start_mode(self, mode_name):
         # Switch to the map screen and set up the chosen mode
-        self.engine.set_mode(mode_name)
-        self.mode_label.setText(f"Current Mode: {mode_name.capitalize()}")
-        
-        # Switch the UI to the map screen (Index 1)
-        self.stacked_widget.setCurrentIndex(1)
-        
-        # (in progress): Refresh map colors based on self.engine.get_progress_for_map(mode_name)
-        
-        if mode_name == 'shape':
-            # Launch the pop-up window for the shape quiz
-            self.shape_dialog = ShapeQuizDialog(self, self.engine, self.map_view)
+        if mode_name == 'explore':
+            self.engine.set_mode('explore')
+            self.stacked_widget.setCurrentIndex(1)
+            
+        elif mode_name == 'shape':
+            # Initialize the shuffled queue in the engine
+            self.engine.start_quiz_session('shape')
+            self.stacked_widget.setCurrentIndex(2)
+            
+            # Start the first question and show the dialog
+            self.shape_dialog.next_question()
             self.shape_dialog.show()
 
     def go_to_menu(self):
         # Return to the main menu screen
         self.stacked_widget.setCurrentIndex(0)
+        self.shape_dialog.hide()
 
     def on_map_clicked(self, country_code):
         # handle what happens when a country is clicked
@@ -113,8 +138,8 @@ class MainWindow(QMainWindow):
             country_data = self.engine.explore_country(country_code)
             if country_data:
                 # Paint the country on the map
-                if hasattr(self.map_view, 'highlight_country'):
-                    self.map_view.highlight_country(country_code, "green")
+                if hasattr(self.explore_map_view, 'highlight_country'):
+                    self.explore_map_view.highlight_country(country_code, "green")
                 
                 # Show the pop-up information window
                 info_text = (
@@ -123,12 +148,12 @@ class MainWindow(QMainWindow):
                     f"Population: {country_data.population:,}\n"
                     f"Area: {country_data.area:,.0f} km²"
                 )
-                QTimer.singleShot(150, lambda: QMessageBox.information(self, "Country Discovered!", info_text))
+                QTimer.singleShot(200, lambda: QMessageBox.information(self, "Country Discovered!", info_text))
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        if hasattr(self, 'map_view') and self.map_view.scene.items():
-            self.map_view.fitInView(self.map_view.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        if hasattr(self, 'map_view') and self.explore_map_view.scene.items():
+            self.explore_map_view.fitInView(self.explore_map_view.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
 class ShapeQuizDialog(QDialog):
     # Pop-up window for the shape quiz
@@ -144,10 +169,14 @@ class ShapeQuizDialog(QDialog):
         self.score_label = QLabel(f"Score: {self.engine.score}")
         layout.addWidget(self.score_label)
 
-        # Placeholder for where the Shape (SVG) would be rendered
-        self.shape_label = QLabel("(Country Shape goes here)")
+        self.shape_label = QLabel("Guess this shape")
         self.shape_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.shape_label)
+
+        self.shape_scene = QGraphicsScene()
+        self.shape_view = QGraphicsView(self.shape_scene)
+        self.shape_view.setFixedSize(250, 150)
+        layout.addWidget(self.shape_view)
         
         self.guess_input = QLineEdit()
         self.guess_input.setPlaceholderText("Type country name here...")
@@ -165,17 +194,37 @@ class ShapeQuizDialog(QDialog):
         btn_layout.addWidget(self.hint_btn)
         layout.addLayout(btn_layout)
 
-        self.next_question()
+    def closeEvent(self, event):
+        # the window will be hidden instead of closed
+        event.ignore()
+        self.hide()
 
+    def display_shape(self, country_path):
+        self.shape_scene.clear()
+        # Create a new item using the path and add it to the mini-scene
+        if country_path:
+            shape_item = QGraphicsPathItem(country_path)
+            shape_item.setBrush(QBrush(Qt.GlobalColor.blue))
+            self.shape_scene.addItem(shape_item)
+        
+        # Scale the view to fit the shape perfectly
+            self.shape_view.fitInView(shape_item.boundingRect(), Qt.AspectRatioMode.KeepAspectRatio)
+        
     def next_question(self):
-        target = self.engine.start_shape_quiz()
+        target = self.engine.next_quiz_target()
         if target:
             self.score_label.setText(f"Score: {self.engine.score}")
             self.shape_label.setText(f"Guess this shape! (Code: {target.code})")
             self.guess_input.clear()
+
+            country_path = self.map_view.get_country_path(target.code)
+            if country_path:
+                self.display_shape(country_path)
+            else:
+                print(f"Warning: Could not find path for {target.code}")
         else:
             QMessageBox.information(self, "Quiz Over", f"You finished the quiz! Final Score: {self.engine.score}")
-            self.accept() # Close the dialog
+            self.hide() # Hide the window
 
     def submit_guess(self):
         guess_text = self.guess_input.text()
@@ -183,7 +232,7 @@ class ShapeQuizDialog(QDialog):
             return
             
         if self.engine.check_answer(guess_text):
-            # Correct! Update map and get next question
+            # If correct, update map and get next question
             self.map_view.highlight_country(self.engine.current_target.code, "green")
             self.next_question()
         else:
