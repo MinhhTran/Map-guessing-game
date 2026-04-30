@@ -29,9 +29,11 @@ class MainWindow(QMainWindow):
         # 3. Create separate mapss for separate progress
         self.explore_map_view = MapView()
         self.explore_map_view.render_map(countries_dict)
+        self.explore_map_view.country_clicked.connect(self.on_map_clicked)
         
         self.shape_map_view = MapView()
         self.shape_map_view.render_map(countries_dict)
+        self.shape_map_view.country_clicked.connect(self.on_map_clicked)
 
         # 4. Initialize the quiz to save state
         self.shape_dialog = ShapeQuizDialog(self, self.engine, self.shape_map_view)
@@ -67,10 +69,10 @@ class MainWindow(QMainWindow):
         btn_shape.clicked.connect(lambda: self.start_mode('shape'))
         
         btn_time = QPushButton("Time Attack (in progress)")
-        btn_shape.clicked.connect(lambda: self.start_mode('shape')) #placeholder
+        btn_time.clicked.connect(lambda: self.start_mode('shape')) #placeholder
         
         btn_flag = QPushButton("Flag Master (in progress)")
-        btn_shape.clicked.connect(lambda: self.start_mode('shape')) #placeholder
+        btn_flag.clicked.connect(lambda: self.start_mode('shape')) #placeholder
         
         # Add buttons to menu layout
         for btn in [btn_explore, btn_shape, btn_time, btn_flag]:
@@ -152,8 +154,11 @@ class MainWindow(QMainWindow):
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        if hasattr(self, 'map_view') and self.explore_map_view.scene.items():
+        if hasattr(self, 'explore_map_view') and self.explore_map_view.scene.items():
             self.explore_map_view.fitInView(self.explore_map_view.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+        if hasattr(self, 'shape_map_view') and self.shape_map_view.scene.items():
+            self.shape_map_view.fitInView(self.shape_map_view.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
 class ShapeQuizDialog(QDialog):
     # Pop-up window for the shape quiz

@@ -16,6 +16,7 @@ class MapView(QGraphicsView):
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         self.setBackgroundBrush(Qt.GlobalColor.blue)
+        self.country_items = {}
 
     def svg_to_qpath(self, path_string, existing_qpath=None):
         #Converts an SVG path string and appends it to a QPainterPath.
@@ -94,6 +95,7 @@ class MapView(QGraphicsView):
                     item = CountryItem(country_obj, master_qpath)
                     item.setCacheMode(QGraphicsItem.CacheMode.DeviceCoordinateCache) # need modify
                     self.scene.addItem(item)
+                    self.country_items[country_code] = item
 
         # Fit the view
         self.setSceneRect(self.scene.itemsBoundingRect())
@@ -174,10 +176,10 @@ class MapView(QGraphicsView):
         super().mouseReleaseEvent(event)
         
         if event.button() == Qt.MouseButton.LeftButton and hasattr(self, 'drag_start_pos'):
-            # 2. Calculate the distance the mouse moved between press and release
+            # Calculate the distance the mouse moved between press and release
             move_distance = (event.pos() - self.drag_start_pos).manhattanLength()
             
-            # 3. If the mouse moved less than 5 pixels, treat it as a deliberate click
+            # If the mouse moved less than 5 pixels, treat it as a deliberate click
             if move_distance < 5:
                 clicked_item = self.itemAt(event.pos())
                 
