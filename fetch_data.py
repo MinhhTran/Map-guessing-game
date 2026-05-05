@@ -2,7 +2,7 @@ import requests
 import json
 
 # The endpoint to get ALL countries with the specific fields
-URL = "https://restcountries.com/v3.1/all?fields=name,capital,population,languages,currencies,area,latlng,flags,region"
+URL = "https://restcountries.com/v3.1/all?fields=cca3,name,capital,population,languages,currencies,latlng,flags,region,borders"
 
 def fetch_and_save_data():
     try:
