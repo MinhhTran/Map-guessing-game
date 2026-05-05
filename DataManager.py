@@ -32,9 +32,15 @@ class DataManager:
                 flags = item.get('flags', {})
                 svg_url = flags.get('svg', '')
                 
+                overrides = {
+                    "Flag_of_the_Taliban": "af",
+                    # the flag of afghanistan has a different structure
+                }
+                
                 if svg_url:
                     # Extracts 'ki' from 'https://flagcdn.com/ki.svg'
                     code = svg_url.split('/')[-1].split('.')[0]
+                    code = overrides.get(code, code).lower()
                 else:
                     code = '??' # 2-letter code for SVG matching
 
