@@ -9,6 +9,7 @@ class GameEngine:
         self.score = 0
         self.time_left = 60 # Placeholder for time-based mode
         self.session_queue = [] # remaining countries for shape quiz
+        self.cca3_lookup = {c.cca3: c.name for c in countries_list if hasattr(c, 'cca3')} # convert code to normal name
 
         # Track progress separately for each game mode
         self.progress = {
@@ -96,13 +97,26 @@ class GameEngine:
         return False
 
     def get_hint(self):
-        # Return one info from the current_target
         if self.current_target is None:
             return "No active country to guess."
-        return f"The capital of this country is {self.current_target.capital}."
+        
+        hint_text = (f"Capital: {self.current_target.capital}\n"
+                     f"Region: {self.current_target.region}\n")
+
+        borders = getattr(self.current_target, 'borders', [])
+        if not borders:
+            hint_text += "This is an island nation."
+        else:
+            neighbor_code = random.choice(borders)
+            
+            # Convert country code to common name
+            neighbor_name = self.cca3_lookup.get(neighbor_code, neighbor_code)
+            hint_text += f"Neighbor: {neighbor_name}"
+
+        return hint_text
     
     def get_progress_for_map(self, mode_name):
-        # Returns the list of explored countries for each mode
+        # Return the list of explored countries for each mode
         if mode_name in self.progress:
             return list(self.progress[mode_name])
         return []

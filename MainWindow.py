@@ -150,7 +150,9 @@ class MainWindow(QMainWindow):
                     f"Name: {country_data.name}\n"
                     f"Capital: {country_data.capital}\n"
                     f"Population: {country_data.population:,}\n"
-                    f"Area: {country_data.area:,.0f} km²"
+                    f"Official languages: {country_data.languages}\n"
+                    f"Currency: {country_data.currencies}\n"
+                    f"Country code: {country_data.cca3}"
                 )
                 QTimer.singleShot(200, lambda: QMessageBox.information(self, "Country Discovered!", info_text))
 
@@ -249,10 +251,21 @@ class ShapeQuizDialog(QDialog):
         guess_text = self.guess_input.text()
         if not guess_text:
             return
-            
+        
         if self.engine.check_answer(guess_text):
             # If correct, update map and get next question
-            self.map_view.highlight_country(self.engine.current_target.code, "green")
+            current_target = self.engine.current_target
+            self.map_view.highlight_country(current_target.code, "green")
+
+            reveal_text = (
+                f"Country: {current_target.name}\n"
+                f"Capital: {current_target.capital}\n"
+                f"Population: {current_target.population:,}\n"
+                f"Currencies: {current_target.currencies}\n"
+                f"Languages: {current_target.languages}\n"
+            )
+            QMessageBox.information(self, "Correct Answer!", reveal_text)
+
             self.next_question()
         else:
             self.score_label.setText(f"Score: {self.engine.score} | Incorrect!")

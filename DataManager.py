@@ -4,7 +4,7 @@ from Country import Country
 class DataManager:
     def __init__(self):
         self.countries_list = []
-        self.countries_dict = {}  # Key: iso_code, Value: Country object
+        self.countries_dict = {}  # Key: iso_code from SVG, Value: Country object
 
     def load_from_json(self, path):
         # Parses the JSON file into Country objects
@@ -27,7 +27,11 @@ class DataManager:
                 #Currency
                 currencies = item.get('currencies', {})
                 # Area
-                area = item.get('area', 0)
+                cca3 = item.get('cca3', '???')
+                # Region
+                region = item.get('region', {})
+                # neighbor
+                borders = item.get('borders', [])
                 # Code
                 flags = item.get('flags', {})
                 svg_url = flags.get('svg', '')
@@ -44,8 +48,8 @@ class DataManager:
                 else:
                     code = '??' # 2-letter code for SVG matching
 
-                new_country = Country(name, capital, population, latlng, 
-                                      languages, currencies, area, code)
+                new_country = Country(name, capital, population, latlng, languages,
+                                      currencies, cca3, region, borders, code)
                 
                 self.countries_list.append(new_country)
                 self.countries_dict[new_country.code] = new_country
