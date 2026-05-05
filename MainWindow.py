@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (QMainWindow, QApplication, QVBoxLayout, QWidget,
                              QStackedWidget, QDialog, QMessageBox, QGraphicsView,
                              QGraphicsScene, QGraphicsPathItem)
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QBrush, QColor
+from PyQt6.QtGui import QBrush, QPen
 from DataManager import DataManager
 from MapView import MapView
 from GameEngine import GameEngine
@@ -102,7 +102,7 @@ class MainWindow(QMainWindow):
         back_btn = QPushButton("← Back to Menu")
         back_btn.clicked.connect(self.go_to_menu)
         
-        # Button to re-open the hidden quiz dialog!
+        # Button to re-open the hidden quiz dialog
         show_quiz_btn = QPushButton("Show Quiz Window")
         show_quiz_btn.clicked.connect(self.shape_dialog.show)
         
@@ -119,11 +119,13 @@ class MainWindow(QMainWindow):
         if mode_name == 'explore':
             self.engine.set_mode('explore')
             self.stacked_widget.setCurrentIndex(1)
+            QTimer.singleShot(0, self.fit_maps_in_view)
             
         elif mode_name == 'shape':
             # Initialize the shuffled queue in the engine
             self.engine.start_quiz_session('shape')
             self.stacked_widget.setCurrentIndex(2)
+            QTimer.singleShot(0, self.fit_maps_in_view)
             
             # Start the first question and show the dialog
             self.shape_dialog.next_question()
@@ -152,13 +154,16 @@ class MainWindow(QMainWindow):
                 )
                 QTimer.singleShot(200, lambda: QMessageBox.information(self, "Country Discovered!", info_text))
 
-    def resizeEvent(self, event):
-        super().resizeEvent(event)
+    def fit_maps_in_view(self):
         if hasattr(self, 'explore_map_view') and self.explore_map_view.scene.items():
             self.explore_map_view.fitInView(self.explore_map_view.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
         if hasattr(self, 'shape_map_view') and self.shape_map_view.scene.items():
             self.shape_map_view.fitInView(self.shape_map_view.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+    
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self.fit_maps_in_view()
 
 class ShapeQuizDialog(QDialog):
     # Pop-up window for the shape quiz
@@ -167,7 +172,7 @@ class ShapeQuizDialog(QDialog):
         self.engine = engine
         self.map_view = map_view
         self.setWindowTitle("Shape Quiz")
-        self.resize(300, 200)
+        self.resize(800, 600)
         
         layout = QVBoxLayout(self)
         
@@ -180,7 +185,11 @@ class ShapeQuizDialog(QDialog):
 
         self.shape_scene = QGraphicsScene()
         self.shape_view = QGraphicsView(self.shape_scene)
-        self.shape_view.setFixedSize(250, 150)
+        self.shape_view.setFixedSize(800, 500)
+        #self.shape_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        #self.shape_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.shape_view.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
         layout.addWidget(self.shape_view)
         
         self.guess_input = QLineEdit()
@@ -210,9 +219,14 @@ class ShapeQuizDialog(QDialog):
         if country_path:
             shape_item = QGraphicsPathItem(country_path)
             shape_item.setBrush(QBrush(Qt.GlobalColor.blue))
+            #outline_pen = QPen(Qt.GlobalColor.black)
+            #outline_pen.setWidth(0) # always 1 pixel wide
+            #shape_item.setPen(outline_pen)
+            shape_item.setPen(QPen(Qt.PenStyle.NoPen))
             self.shape_scene.addItem(shape_item)
         
-        # Scale the view to fit the shape perfectly
+            # Scale the view to fit the shape perfectly
+            self.shape_scene.setSceneRect(shape_item.boundingRect())
             self.shape_view.fitInView(shape_item.boundingRect(), Qt.AspectRatioMode.KeepAspectRatio)
         
     def next_question(self):

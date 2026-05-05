@@ -116,7 +116,7 @@ class MapView(QGraphicsView):
                     break
 
     def get_country_path(self, country_code):
-        """Retrieves the QPainterPath for a specific country code."""
+        # Retrieve the QPainterPath for a specific country code
         # Find the CountryItem associated with this code
         item = self.country_items.get(country_code)
         if item:
