@@ -1,7 +1,8 @@
 import xml.etree.ElementTree as ET
+import math
 from PyQt6.QtWidgets import QGraphicsView, QGraphicsScene, QGraphicsItem
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QPainter, QPainterPath
+from PyQt6.QtGui import QPainter, QPainterPath, QColor
 from CountryItem import CountryItem
 from svg.path import parse_path, Move, Line, CubicBezier, QuadraticBezier, Arc, Close
 
@@ -105,22 +106,59 @@ class MapView(QGraphicsView):
         # Find a CountryItem in the scene by its country code and permanently change its color.
         # Visually represent correctly guessed countries.
         target_code = country_code.lower()
-        
-        # Iterate through all items currently drawn on the QGraphicsScene
-        for item in self.scene.items():
-            # Verify the item is a CountryItem before attempting to access custom properties
-            if isinstance(item, CountryItem):
-                if item.country_data.code == target_code:
-                    item.change_color(color_name)
-                    # Break out of the loop once done
-                    break
+        item = self.country_items.get(target_code)
+        if item:
+            item.change_color(color_name)
 
+    def update_heatmap(self, continent_mastery, guessed_countries):
+        # Apply a color gradient to countries based on the user's mastery level
+        # of different continents.
+        if not continent_mastery:
+            return
+
+        # Find the highest mastery score to scale the gradient
+        max_score = max(continent_mastery.values())
+        if max_score == 0:
+            return
+
+        for code, item in self.country_items.items():
+            if code not in guessed_countries:
+                continue
+
+            region = getattr(item.country_data, 'region', 'Unknown')
+            score = continent_mastery.get(region, 0)
+            if score > 0:
+                if score >= 10:
+                    heatmap_color = QColor(255, 0, 0)
+                elif score >= 6:
+                    heatmap_color = QColor(255, 165, 0)
+                elif score >= 3:
+                    heatmap_color = QColor(255, 222, 33)
+                else:
+                    heatmap_color = QColor(0, 255, 0)
+
+            item.change_color(heatmap_color)
+
+    def latlon_to_screen(self, lat, lon, map_width):
+        # Mercator projection
+        # Linear transform for X axis
+        x = (lon + 180) * (map_width / 360.0)
+        
+        # Logarithmic transform for Y axis
+        lat_radians = math.radians(lat)
+        # Bound latitude to prevent infinity at the poles
+        if lat_radians > math.radians(89.5): lat_radians = math.radians(89.5)
+        if lat_radians < math.radians(-89.5): lat_radians = math.radians(-89.5)
+        y = math.log(math.tan(math.pi / 4.0 + lat_radians / 2.0))
+        
+        return x, y
+    
     def get_country_path(self, country_code):
         # Retrieve the QPainterPath for a specific country code
         # Find the CountryItem associated with this code
         item = self.country_items.get(country_code)
         if item:
-            return item.path() # Returns the QPainterPath
+            return item.path() # Return the QPainterPath
         return None
 
     def wheelEvent(self, event):

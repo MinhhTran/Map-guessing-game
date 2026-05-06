@@ -73,9 +73,12 @@ class MainWindow(QMainWindow):
         
         btn_flag = QPushButton("Flag Master (in progress)")
         btn_flag.clicked.connect(lambda: self.start_mode('shape')) #placeholder
+
+        btn_reset = QPushButton("Reset All Progress")
+        btn_reset.clicked.connect(self.trigger_progress_reset)
         
         # Add buttons to menu layout
-        for btn in [btn_explore, btn_shape, btn_time, btn_flag]:
+        for btn in [btn_explore, btn_shape, btn_time, btn_flag, btn_reset]:
             btn.setFixedSize(300, 50)
             layout.addWidget(btn, alignment=Qt.AlignmentFlag.AlignCenter)
 
@@ -120,12 +123,14 @@ class MainWindow(QMainWindow):
             self.engine.set_mode('explore')
             self.stacked_widget.setCurrentIndex(1)
             QTimer.singleShot(0, self.fit_maps_in_view)
-            
+            self.explore_map_view.update_heatmap(self.engine.continent_mastery, self.engine.guessed_countries)
+
         elif mode_name == 'shape':
             # Initialize the shuffled queue in the engine
             self.engine.start_quiz_session('shape')
             self.stacked_widget.setCurrentIndex(2)
             QTimer.singleShot(0, self.fit_maps_in_view)
+            self.shape_map_view.update_heatmap(self.engine.continent_mastery, self.engine.guessed_countries)
             
             # Start the first question and show the dialog
             self.shape_dialog.next_question()
@@ -167,6 +172,27 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
         self.fit_maps_in_view()
 
+    def trigger_progress_reset(self):
+        # Double check with the user
+        reply = QMessageBox.question(self, 'Reset Progress', 
+                                     'Are you sure?',
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, 
+                                     QMessageBox.StandardButton.No)
+        
+        if reply == QMessageBox.StandardButton.Yes:
+            self.engine.reset_all_progress()
+            
+            # Render the map again to clear the progress
+            countries_dict = self.data_manager.countries_dict
+            
+            self.explore_map_view.scene.clear()
+            self.explore_map_view.render_map(countries_dict)
+            
+            self.shape_map_view.scene.clear()
+            self.shape_map_view.render_map(countries_dict)
+            
+            QMessageBox.information(self, "Success", "All progress has been reset!")
+
 class ShapeQuizDialog(QDialog):
     # Pop-up window for the shape quiz
     def __init__(self, parent=None, engine=None, map_view=None):
@@ -180,6 +206,9 @@ class ShapeQuizDialog(QDialog):
         
         self.score_label = QLabel(f"Score: {self.engine.score}")
         layout.addWidget(self.score_label)
+
+        self.distance_label = QLabel(f"Distance Traveled: {self.engine.total_distance:.1f} km")
+        layout.addWidget(self.distance_label)
 
         self.shape_label = QLabel("Guess this shape")
         self.shape_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -255,8 +284,10 @@ class ShapeQuizDialog(QDialog):
         if self.engine.check_answer(guess_text):
             # If correct, update map and get next question
             current_target = self.engine.current_target
-            self.map_view.highlight_country(current_target.code, "green")
-
+            # self.map_view.highlight_country(current_target.code, green)
+            self.map_view.update_heatmap(self.engine.continent_mastery, self.engine.guessed_countries)
+            self.distance_label.setText(f"Distance Traveled: {self.engine.total_distance:.1f} km")
+            
             reveal_text = (
                 f"Country: {current_target.name}\n"
                 f"Capital: {current_target.capital}\n"

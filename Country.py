@@ -18,7 +18,7 @@ class Country:
         lang_list = ", ".join(self.languages.values())
         curr_list = ", ".join([c['name'] for c in self.currencies.values()])
         return (f"Country: {self.name}\nCapital: {self.capital}\n"
-                f"Population: {self.population:,}\nRegion: {self.region} km²\n"
+                f"Population: {self.population:,}\nRegion: {self.region}\n"
                 f"Languages: {lang_list}\nCurrency: {curr_list}")
 
     def get_distance_to(self, other_country):

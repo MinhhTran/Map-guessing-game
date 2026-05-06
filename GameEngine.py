@@ -1,4 +1,6 @@
 import random
+import json
+import os
 
 class GameEngine:
     def __init__(self, countries_list):
@@ -18,7 +20,16 @@ class GameEngine:
             'time': set(),
             'flag': set()
         }
-    
+
+        # State variables
+        self.total_distance = 0.0
+        self.previous_target = None
+        self.continent_mastery = {}
+        self.guessed_countries = set()
+        
+        # Load permanent user data on initialization
+        self.load_userdata()
+
     def set_mode(self, mode_name):
         # Updates the engine's current mode.
         if mode_name in self.progress:
@@ -59,7 +70,8 @@ class GameEngine:
         # Fisher-Yates randomize
         random.shuffle(available_countries)
         self.session_queue = available_countries
- 
+
+        self.previous_target = None # reset previous target
         return self.next_quiz_target()
 
     def next_quiz_target(self):
@@ -92,6 +104,21 @@ class GameEngine:
             # Prevent duplicate selections
             self.progress[self.current_mode].add(self.current_target.name)
             self.score += 10 # placeholder scoring
+
+            # Update mastery level
+            region = getattr(self.current_target, 'region', 'Unknown')
+            self.continent_mastery[region] = self.continent_mastery.get(region, 0) + 1
+            self.guessed_countries.add(self.current_target.code)
+            
+            # Update distance traveled
+            if self.previous_target:
+                distance = self.previous_target.get_distance_to(self.current_target)
+                self.total_distance += distance
+                
+            self.previous_target = self.current_target
+            
+            # Save the updated progress to JSON
+            self.save_userdata()
             return True
             
         return False
@@ -120,3 +147,40 @@ class GameEngine:
         if mode_name in self.progress:
             return list(self.progress[mode_name])
         return []
+    
+    def load_userdata(self):
+        if os.path.exists('userdata.json'):
+            try:
+                with open('userdata.json', 'r') as f:
+                    data = json.load(f)
+                    self.total_distance = data.get('total_distance', 0.0)
+                    self.continent_mastery = data.get('continent_mastery', {})
+                    self.guessed_countries = set(data.get('guessed_countries', []))
+            except Exception as e:
+                print(f"Error loading userdata: {e}")
+
+    def save_userdata(self):
+        data = {
+            'total_distance': self.total_distance,
+            'continent_mastery': self.continent_mastery,
+            'guessed_countries': list(self.guessed_countries)
+        }
+        try:
+            with open('userdata.json', 'w') as f:
+                json.dump(data, f, indent=4)
+        except Exception as e:
+            print(f"Error saving userdata: {e}")
+
+    def reset_all_progress(self):
+        # clear saved progress
+        self.total_distance = 0.0
+        self.continent_mastery = {}
+        self.guessed_countries = set()
+        self.progress = {
+            'explore': set(),
+            'shape': set(),
+            'time': set(),
+            'flag': set()
+        }
+        self.score = 0
+        self.save_userdata()
