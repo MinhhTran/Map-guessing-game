@@ -180,7 +180,7 @@ class MainWindow(QMainWindow):
             self.engine.score = 0
             self.engine.time_left = 60
             self.engine.session_queue.clear()
-            
+
         self.engine.current_mode = None
     def on_map_clicked(self, country_code):
         # handle what happens when a country is clicked
@@ -265,7 +265,6 @@ class MainWindow(QMainWindow):
         
         restart_btn = QPushButton("Restart Time Attack")
         restart_btn.clicked.connect(self.restart_time_attack)
-        restart_btn.setStyleSheet("background-color: #ffcccc; font-weight: bold;")
         
         top_bar.addWidget(back_btn)
         top_bar.addWidget(QLabel("Mode: Time Attack"))
@@ -288,7 +287,7 @@ class MainWindow(QMainWindow):
         self.time_attack_dialog.guess_input.setEnabled(True)
         self.time_attack_dialog.submit_btn.setEnabled(True)
         self.time_attack_dialog.hint_btn.setEnabled(True)
-        self.time_attack_dialog.info_label.setText("Game Restarted! Type fast!")
+        self.time_attack_dialog.info_label.setText("Game Restarted")
         self.time_attack_dialog.info_label.setStyleSheet("color: blue; font-weight: bold;")
         
         self.time_attack_dialog.update_time_label(self.engine.time_left)
