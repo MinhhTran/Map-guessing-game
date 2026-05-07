@@ -14,6 +14,10 @@ class MapView(QGraphicsView):
         super().__init__(parent)
         self.scene = QGraphicsScene(self)
         self.setScene(self.scene)
+        self.setOptimizationFlag(QGraphicsView.OptimizationFlag.DontAdjustForAntialiasing)
+        self.setOptimizationFlag(QGraphicsView.OptimizationFlag.DontSavePainterState)
+        self.setViewportUpdateMode(QGraphicsView.ViewportUpdateMode.SmartViewportUpdate)
+        self.scene.setItemIndexMethod(QGraphicsScene.ItemIndexMethod.BspTreeIndex)
         self.setRenderHint(QPainter.RenderHint.Antialiasing)
         self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
         self.setBackgroundBrush(Qt.GlobalColor.blue)
@@ -167,7 +171,7 @@ class MapView(QGraphicsView):
         zoom_in_factor = 1.15
         zoom_out_factor = 1.0 / zoom_in_factor
         min_zoom = 0.5
-        max_zoom = 4
+        max_zoom = 1.55
 
         # Current scale factor
         current_zoom = self.transform().m11()

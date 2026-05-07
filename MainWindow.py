@@ -35,18 +35,29 @@ class MainWindow(QMainWindow):
         self.shape_map_view.render_map(countries_dict)
         self.shape_map_view.country_clicked.connect(self.on_map_clicked)
 
+        self.time_map_view = MapView()
+        self.time_map_view.render_map(countries_dict)
+        self.time_map_view.country_clicked.connect(self.on_map_clicked)
+
         # 4. Initialize the quiz to save state
         self.shape_dialog = ShapeQuizDialog(self, self.engine, self.shape_map_view)
+        self.time_attack_dialog = TimeAttackDialog(self, self.engine, self.time_map_view)
+
+        # for time attack mode
+        self.time_attack_timer = QTimer(self)
+        self.time_attack_timer.timeout.connect(self.update_timer)
 
         # 5. Create the different screens
         self.init_main_menu()
         self.init_explore_screen()
         self.init_shape_screen()
+        self.init_time_screen()
         
         # 6. Add screens to the stack
         self.stacked_widget.addWidget(self.menu_widget) # Index 0
         self.stacked_widget.addWidget(self.explore_widget) # Index 1
         self.stacked_widget.addWidget(self.shape_widget) # Index 2
+        self.stacked_widget.addWidget(self.time_widget) # Index 3
 
     def init_main_menu(self):
         # The very first window
@@ -68,8 +79,8 @@ class MainWindow(QMainWindow):
         btn_shape = QPushButton("Shape Quiz")
         btn_shape.clicked.connect(lambda: self.start_mode('shape'))
         
-        btn_time = QPushButton("Time Attack (in progress)")
-        btn_time.clicked.connect(lambda: self.start_mode('shape')) #placeholder
+        btn_time = QPushButton("Time Attack")
+        btn_time.clicked.connect(lambda: self.start_mode('time'))
         
         btn_flag = QPushButton("Flag Master (in progress)")
         btn_flag.clicked.connect(lambda: self.start_mode('shape')) #placeholder
@@ -107,7 +118,7 @@ class MainWindow(QMainWindow):
         
         # Button to re-open the hidden quiz dialog
         show_quiz_btn = QPushButton("Show Quiz Window")
-        show_quiz_btn.clicked.connect(self.shape_dialog.show)
+        show_quiz_btn.clicked.connect(self.show_current_quiz_dialog)
         
         top_bar.addWidget(back_btn)
         top_bar.addWidget(QLabel("Mode: Shape Quiz"))
@@ -123,24 +134,54 @@ class MainWindow(QMainWindow):
             self.engine.set_mode('explore')
             self.stacked_widget.setCurrentIndex(1)
             QTimer.singleShot(0, self.fit_maps_in_view)
-            self.explore_map_view.update_heatmap(self.engine.continent_mastery, self.engine.guessed_countries)
+            self.explore_map_view.update_heatmap(self.engine.continent_mastery['explore'], self.engine.guessed_countries['explore'])
 
         elif mode_name == 'shape':
             # Initialize the shuffled queue in the engine
             self.engine.start_quiz_session('shape')
             self.stacked_widget.setCurrentIndex(2)
             QTimer.singleShot(0, self.fit_maps_in_view)
-            self.shape_map_view.update_heatmap(self.engine.continent_mastery, self.engine.guessed_countries)
+            self.shape_map_view.update_heatmap(self.engine.continent_mastery['shape'], self.engine.guessed_countries['shape'])
             
             # Start the first question and show the dialog
             self.shape_dialog.next_question()
             self.shape_dialog.show()
+        
+        elif mode_name == 'time':
+            self.engine.start_quiz_session('time')
+            self.stacked_widget.setCurrentIndex(3)
+            QTimer.singleShot(0, self.fit_maps_in_view)
+
+            self.time_map_view.update_heatmap(self.engine.continent_mastery['time'], self.engine.guessed_countries['time'])
+            self.restart_time_attack()
+            
+            # Reset and start the time attack mode
+            self.time_attack_dialog.guess_input.setEnabled(True)
+            self.time_attack_dialog.info_label.setText("")
+            self.time_attack_dialog.next_question()
+            self.time_attack_dialog.show()
+            
+            # Start the 60s timer
+            self.engine.time_left = 60
+            self.time_attack_dialog.update_time_label(self.engine.time_left)
+            self.time_attack_timer.start(1000) # Decrement every 10s
 
     def go_to_menu(self):
         # Return to the main menu screen
         self.stacked_widget.setCurrentIndex(0)
-        self.shape_dialog.hide()
+        if hasattr(self, 'shape_dialog'):
+            self.shape_dialog.hide()
+            
+        if hasattr(self, 'time_attack_dialog'):
+            self.time_attack_dialog.hide()
 
+        if hasattr(self, 'time_attack_timer') and self.time_attack_timer.isActive():
+            self.time_attack_timer.stop()
+            self.engine.score = 0
+            self.engine.time_left = 60
+            self.engine.session_queue.clear()
+            
+        self.engine.current_mode = None
     def on_map_clicked(self, country_code):
         # handle what happens when a country is clicked
         if self.engine.current_mode == 'explore':
@@ -192,6 +233,69 @@ class MainWindow(QMainWindow):
             self.shape_map_view.render_map(countries_dict)
             
             QMessageBox.information(self, "Success", "All progress has been reset!")
+
+    def update_timer(self):
+        # Decrement the timer every second (time attack mode)
+        self.engine.time_left -= 1
+        
+        if self.time_attack_dialog.isVisible():
+            self.time_attack_dialog.update_time_label(self.engine.time_left)
+            
+        if self.engine.time_left <= 0:
+            self.time_attack_timer.stop()
+            self.time_attack_dialog.end_game()
+
+    def show_current_quiz_dialog(self):
+        # Open quiz window based on the current game mode
+        if self.engine.current_mode == 'shape':
+            self.shape_dialog.show()
+        elif self.engine.current_mode == 'time':
+            self.time_attack_dialog.show()
+
+    def init_time_screen(self):
+        self.time_widget = QWidget()
+        layout = QVBoxLayout(self.time_widget)
+        
+        top_bar = QHBoxLayout()
+        back_btn = QPushButton("← Back to Menu")
+        back_btn.clicked.connect(self.go_to_menu)
+        
+        show_quiz_btn = QPushButton("Show Quiz Window")
+        show_quiz_btn.clicked.connect(self.time_attack_dialog.show)
+        
+        restart_btn = QPushButton("Restart Time Attack")
+        restart_btn.clicked.connect(self.restart_time_attack)
+        restart_btn.setStyleSheet("background-color: #ffcccc; font-weight: bold;")
+        
+        top_bar.addWidget(back_btn)
+        top_bar.addWidget(QLabel("Mode: Time Attack"))
+        top_bar.addWidget(show_quiz_btn)
+        top_bar.addWidget(restart_btn)
+        top_bar.addStretch()
+        
+        layout.addLayout(top_bar)
+        layout.addWidget(self.time_map_view) 
+
+    def restart_time_attack(self):
+        # Reset the timer, score, and create new quiz
+        self.time_attack_timer.stop()
+        
+        self.engine.score = 0
+        self.engine.time_left = 60
+        self.engine.start_quiz_session('time')
+        
+        # Reset the dialog UI
+        self.time_attack_dialog.guess_input.setEnabled(True)
+        self.time_attack_dialog.submit_btn.setEnabled(True)
+        self.time_attack_dialog.hint_btn.setEnabled(True)
+        self.time_attack_dialog.info_label.setText("Game Restarted! Type fast!")
+        self.time_attack_dialog.info_label.setStyleSheet("color: blue; font-weight: bold;")
+        
+        self.time_attack_dialog.update_time_label(self.engine.time_left)
+        self.time_attack_dialog.next_question()
+        self.time_attack_dialog.show()
+        
+        self.time_attack_timer.start(1000)
 
 class ShapeQuizDialog(QDialog):
     # Pop-up window for the shape quiz
@@ -249,7 +353,7 @@ class ShapeQuizDialog(QDialog):
         # Create a new item using the path and add it to the mini-scene
         if country_path:
             shape_item = QGraphicsPathItem(country_path)
-            shape_item.setBrush(QBrush(Qt.GlobalColor.blue))
+            shape_item.setBrush(QBrush(Qt.GlobalColor.green))
             #outline_pen = QPen(Qt.GlobalColor.black)
             #outline_pen.setWidth(0) # always 1 pixel wide
             #shape_item.setPen(outline_pen)
@@ -285,7 +389,8 @@ class ShapeQuizDialog(QDialog):
             # If correct, update map and get next question
             current_target = self.engine.current_target
             # self.map_view.highlight_country(current_target.code, green)
-            self.map_view.update_heatmap(self.engine.continent_mastery, self.engine.guessed_countries)
+            self.map_view.update_heatmap(self.engine.continent_mastery[self.engine.current_mode],
+                                         self.engine.guessed_countries[self.engine.current_mode])
             self.distance_label.setText(f"Distance Traveled: {self.engine.total_distance:.1f} km")
             
             reveal_text = (
@@ -305,6 +410,119 @@ class ShapeQuizDialog(QDialog):
     def show_hint(self):
         hint = self.engine.get_hint()
         QMessageBox.information(self, "Hint", hint)
+
+class TimeAttackDialog(QDialog):
+    def __init__(self, parent=None, engine=None, map_view=None):
+        super().__init__(parent)
+        self.engine = engine
+        self.map_view = map_view
+        self.setWindowTitle("Time Attack!")
+        self.resize(800, 600)
+        
+        layout = QVBoxLayout(self)
+        
+        # Header layout (timer and score)
+        header_layout = QHBoxLayout()
+        self.time_label = QLabel("Time Left: 60s")
+        self.time_label.setStyleSheet("color: red; font-size: 18px; font-weight: bold;")
+        self.score_label = QLabel(f"Score: {self.engine.score}")
+        self.score_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        
+        header_layout.addWidget(self.time_label)
+        header_layout.addStretch()
+        header_layout.addWidget(self.score_label)
+        layout.addLayout(header_layout)
+        
+        # Shape viewer
+        self.shape_label = QLabel("Guess this shape")
+        self.shape_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.shape_label)
+        
+        self.shape_scene = QGraphicsScene()
+        self.shape_view = QGraphicsView(self.shape_scene)
+        self.shape_view.setFixedSize(800, 400)
+        self.shape_view.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.shape_view)
+        
+        # Info label (Replace QMessageBox for fast pacing)
+        self.info_label = QLabel("")
+        self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.info_label.setStyleSheet("color: green; font-weight: bold;")
+        layout.addWidget(self.info_label)
+        
+        # Input field
+        self.guess_input = QLineEdit()
+        self.guess_input.setPlaceholderText("Type fast and hit Enter...")
+        self.guess_input.returnPressed.connect(self.submit_guess)
+        layout.addWidget(self.guess_input)
+
+        # buttons
+        btn_layout = QHBoxLayout()
+        self.submit_btn = QPushButton("Submit")
+        self.submit_btn.clicked.connect(self.submit_guess)
+        
+        self.hint_btn = QPushButton("Hint")
+        self.hint_btn.clicked.connect(self.show_hint)
+        
+        btn_layout.addWidget(self.submit_btn)
+        btn_layout.addWidget(self.hint_btn)
+        layout.addLayout(btn_layout)
+
+    def closeEvent(self, event):
+        event.ignore()
+        self.hide()
+    
+    def show_hint(self):
+        hint = self.engine.get_hint()
+        QMessageBox.information(self, "Hint", hint)
+
+    def update_time_label(self, time_left):
+        self.time_label.setText(f"Time Left: {time_left}s")
+
+    def display_shape(self, country_path):
+        self.shape_scene.clear()
+        if country_path:
+            shape_item = QGraphicsPathItem(country_path)
+            shape_item.setBrush(QBrush(Qt.GlobalColor.green))
+            shape_item.setPen(QPen(Qt.PenStyle.NoPen))
+            self.shape_scene.addItem(shape_item)
+            self.shape_scene.setSceneRect(shape_item.boundingRect())
+            self.shape_view.fitInView(shape_item.boundingRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+    def next_question(self):
+        target = self.engine.next_quiz_target()
+        if target:
+            self.score_label.setText(f"Score: {self.engine.score}")
+            self.guess_input.clear()
+            country_path = self.map_view.get_country_path(target.code)
+            if country_path:
+                self.display_shape(country_path)
+        else:
+            self.end_game()
+
+    def submit_guess(self):
+        guess_text = self.guess_input.text()
+        if not guess_text: return
+        
+        if self.engine.check_answer(guess_text):
+            current_target = self.engine.current_target
+            # Highlight country in green on the main map
+            self.map_view.highlight_country(current_target.code, "green")
+            
+            # Show info without blocking the UI
+            self.info_label.setText(f"Correct! {current_target.name} - Capital: {current_target.capital}")
+            self.next_question()
+        else:
+            self.info_label.setText("Keep trying!")
+            self.info_label.setStyleSheet("color: orange; font-weight: bold;")
+            self.guess_input.clear()
+            
+    def end_game(self):
+        self.guess_input.setDisabled(True)
+        self.submit_btn.setDisabled(True)
+        self.hint_btn.setDisabled(True)
+        QMessageBox.information(self, "Time's Up!", f"Game Over!\nFinal Score: {self.engine.score}")
+        self.hide()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

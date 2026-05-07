@@ -24,8 +24,8 @@ class GameEngine:
         # State variables
         self.total_distance = 0.0
         self.previous_target = None
-        self.continent_mastery = {}
-        self.guessed_countries = set()
+        self.continent_mastery = {'explore': {}, 'shape': {}, 'time': {}, 'flag': {}}
+        self.guessed_countries = {'explore': set(), 'shape': set(), 'time': set(), 'flag': set()}
         
         # Load permanent user data on initialization
         self.load_userdata()
@@ -83,6 +83,25 @@ class GameEngine:
         self.current_target = self.session_queue.pop()
         return self.current_target
     
+    def calculate_levenshtein(self, s1, s2):
+        # Calculate Levenshtein distance between two strings
+        if len(s1) < len(s2):
+            return self.calculate_levenshtein(s2, s1)
+        if len(s2) == 0:
+            return len(s1)
+            
+        previous_row = range(len(s2) + 1)
+        for i, c1 in enumerate(s1):
+            current_row = [i + 1]
+            for j, c2 in enumerate(s2):
+                insertions = previous_row[j + 1] + 1
+                deletions = current_row[j] + 1
+                substitutions = previous_row[j] + (c1 != c2)
+                current_row.append(min(insertions, deletions, substitutions))
+            previous_row = current_row
+            
+        return previous_row[-1]
+    
     def check_answer(self, guess_text):
         # Compare the user's string input with self.current_target.name
         if self.current_target is None or self.current_mode is None:
@@ -97,8 +116,10 @@ class GameEngine:
             is_correct = True
         # Fuzzy match for Time Attack (Levenshtein distance)
         elif self.current_mode == 'time':
-            pass 
-            '''Levenshtein threshold (later)'''
+            distance = self.calculate_levenshtein(user_guess, target_name)
+            threshold = 1
+            if distance <= threshold:
+                is_correct = True
 
         if is_correct:
             # Prevent duplicate selections
@@ -107,8 +128,9 @@ class GameEngine:
 
             # Update mastery level
             region = getattr(self.current_target, 'region', 'Unknown')
-            self.continent_mastery[region] = self.continent_mastery.get(region, 0) + 1
-            self.guessed_countries.add(self.current_target.code)
+            mode = self.current_mode
+            self.continent_mastery[mode][region] = self.continent_mastery[mode].get(region, 0) + 1
+            self.guessed_countries[mode].add(self.current_target.code)
             
             # Update distance traveled
             if self.previous_target:
@@ -154,8 +176,17 @@ class GameEngine:
                 with open('userdata.json', 'r') as f:
                     data = json.load(f)
                     self.total_distance = data.get('total_distance', 0.0)
-                    self.continent_mastery = data.get('continent_mastery', {})
-                    self.guessed_countries = set(data.get('guessed_countries', []))
+                    
+                    mastery = data.get('continent_mastery', {})
+                    guessed = data.get('guessed_countries', {})
+                    
+                    # Catch old save files and migrate them to shape-based mode
+                    if isinstance(guessed, list): 
+                        self.guessed_countries['shape'] = set(guessed)
+                        self.continent_mastery['shape'] = mastery
+                    else:
+                        self.continent_mastery = mastery
+                        self.guessed_countries = {k: set(v) for k, v in guessed.items()}
             except Exception as e:
                 print(f"Error loading userdata: {e}")
 
@@ -163,7 +194,7 @@ class GameEngine:
         data = {
             'total_distance': self.total_distance,
             'continent_mastery': self.continent_mastery,
-            'guessed_countries': list(self.guessed_countries)
+            'guessed_countries': {k: list(v) for k, v in self.guessed_countries.items()} 
         }
         try:
             with open('userdata.json', 'w') as f:
@@ -174,8 +205,18 @@ class GameEngine:
     def reset_all_progress(self):
         # clear saved progress
         self.total_distance = 0.0
-        self.continent_mastery = {}
-        self.guessed_countries = set()
+        self.continent_mastery = {
+            'explore': {}, 
+            'shape': {}, 
+            'time': {}, 
+            'flag': {}
+        }
+        self.guessed_countries = {
+            'explore': set(), 
+            'shape': set(), 
+            'time': set(), 
+            'flag': set()
+        }
         self.progress = {
             'explore': set(),
             'shape': set(),
