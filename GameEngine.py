@@ -9,9 +9,10 @@ class GameEngine:
         self.current_mode = None  # Track which mode the user is currently playing
         self.current_target = None
         self.score = 0
-        self.time_left = 60 # Placeholder for time-based mode
+        self.time_left = 120
         self.session_queue = [] # remaining countries for shape quiz
         self.cca3_lookup = {c.cca3: c.name for c in countries_list if hasattr(c, 'cca3')} # convert code to normal name
+        self.failed_attempts = 0
 
         # Track progress separately for each game mode
         self.progress = {
@@ -37,7 +38,7 @@ class GameEngine:
             self.current_target = None
             # Code to reset self.score or self.time_left (not sure)
             if mode_name == 'time':
-                self.time_left = 60
+                self.time_left = 120
             else:
                 self.time_left = 0
         else:
@@ -81,6 +82,7 @@ class GameEngine:
             return None # All countries guessed
             
         self.current_target = self.session_queue.pop()
+        self.failed_attempts = 0
         return self.current_target
     
     def calculate_levenshtein(self, s1, s2):
@@ -117,7 +119,7 @@ class GameEngine:
         # Fuzzy match for Time Attack (Levenshtein distance)
         elif self.current_mode == 'time':
             distance = self.calculate_levenshtein(user_guess, target_name)
-            threshold = 1
+            threshold = 2
             if distance <= threshold:
                 is_correct = True
 
@@ -142,27 +144,54 @@ class GameEngine:
             # Save the updated progress to JSON
             self.save_userdata()
             return True
-            
+        
+        self.failed_attempts += 1
         return False
 
     def get_hint(self):
         if self.current_target is None:
             return "No active country to guess."
         
-        hint_text = (f"Capital: {self.current_target.capital}\n"
-                     f"Region: {self.current_target.region}\n")
+        if self.current_mode == 'time' or self.current_mode == 'shape':
+            hint_text = (f"Capital: {self.current_target.capital}\n"
+                        f"Region: {self.current_target.region}\n")
 
-        borders = getattr(self.current_target, 'borders', [])
-        if not borders:
-            hint_text += "This is an island nation."
-        else:
-            neighbor_code = random.choice(borders)
+            borders = getattr(self.current_target, 'borders', [])
+            if not borders:
+                hint_text += "This is an island nation."
+            else:
+                neighbor_code = random.choice(borders)
+                
+                # Convert country code to common name
+                neighbor_name = self.cca3_lookup.get(neighbor_code, neighbor_code)
+                hint_text += f"Neighbor: {neighbor_name}"
+            return hint_text
+        
+        elif self.current_mode == 'flag':
+            if self.failed_attempts == 0:
+                return "Try making a guess first before asking for a hint!"
+                
+            hint_text = ""
             
-            # Convert country code to common name
-            neighbor_name = self.cca3_lookup.get(neighbor_code, neighbor_code)
-            hint_text += f"Neighbor: {neighbor_name}"
-
-        return hint_text
+            # Hint 1
+            if self.failed_attempts >= 1:
+                hint_text += f"Region: {self.current_target.region}\n"
+                
+            # Hint 2
+            if self.failed_attempts >= 2:
+                hint_text += f"Capital: {self.current_target.capital}\n"
+                
+            # Hint 3
+            if self.failed_attempts >= 3:
+                borders = getattr(self.current_target, 'borders', [])
+                if not borders:
+                    hint_text += "Geography: This is an island nation.\n"
+                else:
+                    neighbor_code = random.choice(borders)
+                    neighbor_name = self.cca3_lookup.get(neighbor_code, neighbor_code)
+                    hint_text += f"Neighbor: {neighbor_name}\n"
+                    
+            return hint_text.strip()
     
     def get_progress_for_map(self, mode_name):
         # Return the list of explored countries for each mode

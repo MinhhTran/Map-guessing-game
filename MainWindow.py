@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (QMainWindow, QApplication, QVBoxLayout, QWidget,
                              QStackedWidget, QDialog, QMessageBox, QGraphicsView,
                              QGraphicsScene, QGraphicsPathItem)
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QBrush, QPen
+from PyQt6.QtGui import QBrush, QPen, QPixmap
 from DataManager import DataManager
 from MapView import MapView
 from GameEngine import GameEngine
@@ -39,9 +39,14 @@ class MainWindow(QMainWindow):
         self.time_map_view.render_map(countries_dict)
         self.time_map_view.country_clicked.connect(self.on_map_clicked)
 
+        self.flag_map_view = MapView()
+        self.flag_map_view.render_map(countries_dict)
+        self.flag_map_view.country_clicked.connect(self.on_map_clicked)
+
         # 4. Initialize the quiz to save state
         self.shape_dialog = ShapeQuizDialog(self, self.engine, self.shape_map_view)
         self.time_attack_dialog = TimeAttackDialog(self, self.engine, self.time_map_view)
+        self.flag_dialog = FlagQuizDialog(self, self.engine, self.flag_map_view)
 
         # for time attack mode
         self.time_attack_timer = QTimer(self)
@@ -52,12 +57,14 @@ class MainWindow(QMainWindow):
         self.init_explore_screen()
         self.init_shape_screen()
         self.init_time_screen()
+        self.init_flag_screen()
         
         # 6. Add screens to the stack
         self.stacked_widget.addWidget(self.menu_widget) # Index 0
         self.stacked_widget.addWidget(self.explore_widget) # Index 1
         self.stacked_widget.addWidget(self.shape_widget) # Index 2
         self.stacked_widget.addWidget(self.time_widget) # Index 3
+        self.stacked_widget.addWidget(self.flag_widget) # Index 4
 
     def init_main_menu(self):
         # The very first window
@@ -82,8 +89,8 @@ class MainWindow(QMainWindow):
         btn_time = QPushButton("Time Attack")
         btn_time.clicked.connect(lambda: self.start_mode('time'))
         
-        btn_flag = QPushButton("Flag Master (in progress)")
-        btn_flag.clicked.connect(lambda: self.start_mode('shape')) #placeholder
+        btn_flag = QPushButton("Flag Master")
+        btn_flag.clicked.connect(lambda: self.start_mode('flag'))
 
         btn_reset = QPushButton("Reset All Progress")
         btn_reset.clicked.connect(self.trigger_progress_reset)
@@ -128,6 +135,25 @@ class MainWindow(QMainWindow):
         layout.addLayout(top_bar)
         layout.addWidget(self.shape_map_view) # Add the Shape Map
 
+    def init_flag_screen(self):
+        self.flag_widget = QWidget()
+        layout = QVBoxLayout(self.flag_widget)
+        
+        top_bar = QHBoxLayout()
+        back_btn = QPushButton("← Back to Menu")
+        back_btn.clicked.connect(self.go_to_menu)
+        
+        show_quiz_btn = QPushButton("Show Quiz Window")
+        show_quiz_btn.clicked.connect(self.show_current_quiz_dialog)
+        
+        top_bar.addWidget(back_btn)
+        top_bar.addWidget(QLabel("Mode: Flag Master"))
+        top_bar.addWidget(show_quiz_btn)
+        top_bar.addStretch()
+        
+        layout.addLayout(top_bar)
+        layout.addWidget(self.flag_map_view)
+
     def start_mode(self, mode_name):
         # Switch to the map screen and set up the chosen mode
         if mode_name == 'explore':
@@ -161,10 +187,19 @@ class MainWindow(QMainWindow):
             self.time_attack_dialog.next_question()
             self.time_attack_dialog.show()
             
-            # Start the 60s timer
-            self.engine.time_left = 60
+            # Start the 120s timer
+            self.engine.time_left = 120
             self.time_attack_dialog.update_time_label(self.engine.time_left)
             self.time_attack_timer.start(1000) # Decrement every 10s
+
+        elif mode_name == 'flag':
+            self.engine.start_quiz_session('flag')
+            self.stacked_widget.setCurrentIndex(4)
+            QTimer.singleShot(0, self.fit_maps_in_view)
+            self.flag_map_view.update_heatmap(self.engine.continent_mastery['flag'], self.engine.guessed_countries['flag'])
+            
+            self.flag_dialog.next_question()
+            self.flag_dialog.show()
 
     def go_to_menu(self):
         # Return to the main menu screen
@@ -178,8 +213,11 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'time_attack_timer') and self.time_attack_timer.isActive():
             self.time_attack_timer.stop()
             self.engine.score = 0
-            self.engine.time_left = 60
+            self.engine.time_left = 120
             self.engine.session_queue.clear()
+
+        if hasattr(self, 'flag_dialog'):
+            self.flag_dialog.hide()
 
         self.engine.current_mode = None
     def on_map_clicked(self, country_code):
@@ -208,6 +246,9 @@ class MainWindow(QMainWindow):
 
         if hasattr(self, 'shape_map_view') and self.shape_map_view.scene.items():
             self.shape_map_view.fitInView(self.shape_map_view.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+        if hasattr(self, 'flag_map_view') and self.flag_map_view.scene.items():
+            self.flag_map_view.fitInView(self.flag_map_view.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
     
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -251,6 +292,8 @@ class MainWindow(QMainWindow):
             self.shape_dialog.show()
         elif self.engine.current_mode == 'time':
             self.time_attack_dialog.show()
+        elif self.engine.current_mode == 'flag':
+            self.flag_dialog.show()
 
     def init_time_screen(self):
         self.time_widget = QWidget()
@@ -280,7 +323,7 @@ class MainWindow(QMainWindow):
         self.time_attack_timer.stop()
         
         self.engine.score = 0
-        self.engine.time_left = 60
+        self.engine.time_left = 120
         self.engine.start_quiz_session('time')
         
         # Reset the dialog UI
@@ -422,7 +465,7 @@ class TimeAttackDialog(QDialog):
         
         # Header layout (timer and score)
         header_layout = QHBoxLayout()
-        self.time_label = QLabel("Time Left: 60s")
+        self.time_label = QLabel("Time Left: 120s")
         self.time_label.setStyleSheet("color: red; font-size: 18px; font-weight: bold;")
         self.score_label = QLabel(f"Score: {self.engine.score}")
         self.score_label.setStyleSheet("font-size: 18px; font-weight: bold;")
@@ -522,6 +565,99 @@ class TimeAttackDialog(QDialog):
         self.hint_btn.setDisabled(True)
         QMessageBox.information(self, "Time's Up!", f"Game Over!\nFinal Score: {self.engine.score}")
         self.hide()
+
+class FlagQuizDialog(QDialog):
+    def __init__(self, parent=None, engine=None, map_view=None):
+        super().__init__(parent)
+        self.engine = engine
+        self.map_view = map_view
+        self.setWindowTitle("Flag Master Quiz")
+        self.resize(800, 600)
+        
+        layout = QVBoxLayout(self)
+        
+        self.score_label = QLabel(f"Score: {self.engine.score}")
+        layout.addWidget(self.score_label)
+        self.distance_label = QLabel(f"Distance Traveled: {self.engine.total_distance:.1f} km")
+        layout.addWidget(self.distance_label)
+        
+        self.instruction_label = QLabel("Guess the country from this flag!")
+        self.instruction_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.instruction_label)
+        
+        # Use QLabel to display the flag image
+        self.flag_label = QLabel()
+        self.flag_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.flag_label)
+        
+        self.guess_input = QLineEdit()
+        self.guess_input.setPlaceholderText("Type country name here...")
+        self.guess_input.returnPressed.connect(self.submit_guess)
+        layout.addWidget(self.guess_input)
+        
+        btn_layout = QHBoxLayout()
+        self.submit_btn = QPushButton("Submit")
+        self.submit_btn.clicked.connect(self.submit_guess)
+        
+        self.hint_btn = QPushButton("Hint")
+        self.hint_btn.clicked.connect(self.show_hint)
+        
+        btn_layout.addWidget(self.submit_btn)
+        btn_layout.addWidget(self.hint_btn)
+        layout.addLayout(btn_layout)
+
+    def closeEvent(self, event):
+        event.ignore()
+        self.hide()
+
+    def display_flag(self, country_code):
+        # Construct the path to the flag image using the country code
+        flag_path = f"flags/{country_code.lower()}.png"
+        pixmap = QPixmap(flag_path)
+        
+        if not pixmap.isNull():
+            # Scale the image to fit nicely within the dialog
+            pixmap = pixmap.scaled(400, 300, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+            self.flag_label.setPixmap(pixmap)
+        else:
+            self.flag_label.setText(f"Flag image not found for code: {country_code}")
+
+    def next_question(self):
+        target = self.engine.next_quiz_target()
+        if target:
+            self.score_label.setText(f"Score: {self.engine.score}")
+            self.guess_input.clear()
+            self.display_flag(target.cca3)
+        else:
+            QMessageBox.information(self, "Quiz Over", f"You finished the quiz! Final Score: {self.engine.score}")
+            self.hide()
+
+    def submit_guess(self):
+        guess_text = self.guess_input.text()
+        if not guess_text:
+            return
+        
+        if self.engine.check_answer(guess_text):
+            current_target = self.engine.current_target
+            self.map_view.update_heatmap(self.engine.continent_mastery[self.engine.current_mode],
+                                         self.engine.guessed_countries[self.engine.current_mode])
+            self.distance_label.setText(f"Distance Traveled: {self.engine.total_distance:.1f} km")
+            
+            reveal_text = (
+                f"Country: {current_target.name}\n"
+                f"Capital: {current_target.capital}\n"
+                f"Population: {current_target.population:,}\n"
+                f"Currencies: {current_target.currencies}\n"
+            )
+            QMessageBox.information(self, "Correct Answer!", reveal_text)
+            self.next_question()
+        else:
+            self.score_label.setText(f"Score: {self.engine.score} | Incorrect!")
+            self.guess_input.clear()
+
+    def show_hint(self):
+        hint = self.engine.get_hint()
+        QMessageBox.information(self, "Hint", hint)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
