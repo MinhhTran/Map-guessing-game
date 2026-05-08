@@ -1,23 +1,20 @@
 {
-    "total_distance": 0.0,
+    "total_distance": {
+        "explore": 0.0,
+        "shape": 0.0,
+        "time": 0.0,
+        "flag": 0.0
+    },
     "continent_mastery": {
         "explore": {},
-        "shape": {
-            "Asia": 1
-        },
-        "time": {
-            "Asia": 1
-        },
+        "shape": {},
+        "time": {},
         "flag": {}
     },
     "guessed_countries": {
         "explore": [],
-        "shape": [
-            "tw"
-        ],
-        "time": [
-            "kp"
-        ],
+        "shape": [],
+        "time": [],
         "flag": []
     }
 }
