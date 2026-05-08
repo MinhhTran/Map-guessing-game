@@ -56,6 +56,10 @@ class GameEngine:
         if country:
             # Add to exploration progress for map painting
             self.progress['explore'].add(country.name)
+            region = getattr(country, 'region', 'Unknown')
+            self.continent_mastery['explore'][region] = self.continent_mastery['explore'].get(region, 0) + 1
+            self.guessed_countries['explore'].add(country.code)
+            self.save_userdata()
             return country
             
         return None
@@ -138,7 +142,7 @@ class GameEngine:
             # Update distance traveled
             if self.previous_target:
                 distance = self.previous_target.get_distance_to(self.current_target)
-                self.total_distance += distance
+                self.total_distance[mode] += distance
                 
             self.previous_target = self.current_target
             
@@ -218,8 +222,12 @@ class GameEngine:
             try:
                 with open('userdata.json', 'r') as f:
                     data = json.load(f)
-                    self.total_distance = data.get('total_distance', 0.0)
-                    
+                    distance = data.get('total_distance', {})
+                    if isinstance(distance, float) or isinstance(distance, int):
+                        self.total_distance = {'explore': 0.0, 'shape': distance, 'time': 0.0, 'flag': 0.0}
+                    else:
+                        self.total_distance = distance
+
                     mastery = data.get('continent_mastery', {})
                     guessed = data.get('guessed_countries', {})
                     
@@ -230,6 +238,13 @@ class GameEngine:
                     else:
                         self.continent_mastery = mastery
                         self.guessed_countries = {k: set(v) for k, v in guessed.items()}
+
+                    # to prevent duplicated question
+                    for mode, codes in self.guessed_countries.items():
+                        for code in codes:
+                            country = next((c for c in self.countries_list if c.code == code), None)
+                            if country:
+                                self.progress[mode].add(country.name)
             except Exception as e:
                 print(f"Error loading userdata: {e}")
 
@@ -247,7 +262,12 @@ class GameEngine:
 
     def reset_all_progress(self):
         # clear saved progress
-        self.total_distance = 0.0
+        self.total_distance = {
+            'explore': 0.0,
+            'shape': 0.0,
+            'time': 0.0,
+            'flag': 0.0
+        }
         self.continent_mastery = {
             'explore': {}, 
             'shape': {}, 

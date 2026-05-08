@@ -378,7 +378,7 @@ class ShapeQuizDialog(QDialog):
         self.score_label = QLabel(f"Score: {self.engine.score}")
         layout.addWidget(self.score_label)
 
-        self.distance_label = QLabel(f"Distance Traveled: {self.engine.total_distance:.1f} km")
+        self.distance_label = QLabel("Distance Traveled: 0.0 km")
         layout.addWidget(self.distance_label)
 
         self.shape_label = QLabel("Guess this shape")
@@ -462,7 +462,7 @@ class ShapeQuizDialog(QDialog):
             # self.map_view.highlight_country(current_target.code, green)
             self.map_view.update_heatmap(self.engine.continent_mastery[self.engine.current_mode],
                                          self.engine.guessed_countries[self.engine.current_mode])
-            self.distance_label.setText(f"Distance Traveled: {self.engine.total_distance:.1f} km")
+            self.distance_label.setText(f"Distance Traveled: {self.engine.total_distance[self.engine.current_mode]:.1f} km")
             
             reveal_text = (
                 f"Country: {current_target.name}\n"
@@ -636,7 +636,7 @@ class FlagQuizDialog(QDialog):
         
         self.score_label = QLabel(f"Score: {self.engine.score}")
         layout.addWidget(self.score_label)
-        self.distance_label = QLabel(f"Distance Traveled: {self.engine.total_distance:.1f} km")
+        self.distance_label = QLabel("Distance Traveled: 0.0 km")
         layout.addWidget(self.distance_label)
         
         self.instruction_label = QLabel("Guess the country from this flag!")
@@ -703,7 +703,7 @@ class FlagQuizDialog(QDialog):
             current_target = self.engine.current_target
             self.map_view.update_heatmap(self.engine.continent_mastery[self.engine.current_mode],
                                          self.engine.guessed_countries[self.engine.current_mode])
-            self.distance_label.setText(f"Distance Traveled: {self.engine.total_distance:.1f} km")
+            self.distance_label.setText(f"Distance Traveled: {self.engine.total_distance[self.engine.current_mode]:.1f} km")
             
             reveal_text = (
                 f"Country: {current_target.name}\n"
