@@ -36,7 +36,8 @@ class GameEngine:
         if mode_name in self.progress:
             self.current_mode = mode_name
             self.current_target = None
-            # Code to reset self.score or self.time_left (not sure)
+            self.score = 0
+            
             if mode_name == 'time':
                 self.time_left = 120
             else:
@@ -153,23 +154,28 @@ class GameEngine:
             return "No active country to guess."
         
         if self.current_mode == 'time' or self.current_mode == 'shape':
-            hint_text = (f"Capital: {self.current_target.capital}\n"
-                        f"Region: {self.current_target.region}\n")
+            hint_text = ""            
+            if not self.current_target.capital or self.current_target.capital == "N/A":
+                hint_text += "Capital: No capital"
+            else:
+                hint_text += f"Capital: {self.current_target.capital}\n"
 
-            borders = getattr(self.current_target, 'borders', [])
-            if not borders:
+            hint_text += f"Region: {self.current_target.region}\n"
+
+            if not self.current_target.borders:
                 hint_text += "This is an island nation."
             else:
-                neighbor_code = random.choice(borders)
+                neighbor_code = random.choice(self.current_target.borders)
                 
                 # Convert country code to common name
                 neighbor_name = self.cca3_lookup.get(neighbor_code, neighbor_code)
                 hint_text += f"Neighbor: {neighbor_name}"
-            return hint_text
+
+            return hint_text.strip()
         
         elif self.current_mode == 'flag':
             if self.failed_attempts == 0:
-                return "Try making a guess first before asking for a hint!"
+                return "Try making a guess first"
                 
             hint_text = ""
             
@@ -179,15 +185,17 @@ class GameEngine:
                 
             # Hint 2
             if self.failed_attempts >= 2:
-                hint_text += f"Capital: {self.current_target.capital}\n"
+                if not self.current_target.capital or self.current_target.capital == "N/A":
+                    hint_text += "This country doesn't have a capital"
+                else:
+                    hint_text += f"Capital: {self.current_target.capital}\n"
                 
             # Hint 3
             if self.failed_attempts >= 3:
-                borders = getattr(self.current_target, 'borders', [])
-                if not borders:
-                    hint_text += "Geography: This is an island nation.\n"
+                if not self.current_target.borders:
+                    hint_text += "This is an island nation.\n"
                 else:
-                    neighbor_code = random.choice(borders)
+                    neighbor_code = random.choice(self.current_target.borders)
                     neighbor_name = self.cca3_lookup.get(neighbor_code, neighbor_code)
                     hint_text += f"Neighbor: {neighbor_name}\n"
                     

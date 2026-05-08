@@ -231,13 +231,28 @@ class MainWindow(QMainWindow):
                 
                 # Show the pop-up information window
                 info_text = (
-                    f"Name: {country_data.name}\n"
-                    f"Capital: {country_data.capital}\n"
-                    f"Population: {country_data.population:,}\n"
-                    f"Official languages: {country_data.languages}\n"
-                    f"Currency: {country_data.currencies}\n"
-                    f"Country code: {country_data.cca3}"
+                    f"Country: {country_data.name}\n"
                 )
+
+                if not country_data.capital or country_data.capital == "N/A":
+                    info_text += "Capital: No capital\n"
+                else:
+                    info_text += f"Capital: {country_data.capital}\n"
+                
+                info_text += f"Population: {country_data.population}\n"
+
+                if not country_data.currencies:
+                    info_text += "Currency: No currency\n"
+                else:
+                    info_text += f"Currencies: {country_data.currencies}\n"
+
+                if not country_data.languages:
+                    info_text += "Language: No language\n"
+                else:
+                    info_text += f"Languages: {country_data.languages}\n"
+
+                info_text += f"Country code: {country_data.cca3}\n"
+
                 QTimer.singleShot(200, lambda: QMessageBox.information(self, "Country Discovered!", info_text))
 
     def fit_maps_in_view(self):
@@ -249,6 +264,9 @@ class MainWindow(QMainWindow):
 
         if hasattr(self, 'flag_map_view') and self.flag_map_view.scene.items():
             self.flag_map_view.fitInView(self.flag_map_view.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+        if hasattr(self, 'time_map_view') and self.time_map_view.scene.items():
+            self.time_map_view.fitInView(self.time_map_view.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
     
     def resizeEvent(self, event):
         super().resizeEvent(event)
@@ -272,6 +290,12 @@ class MainWindow(QMainWindow):
             
             self.shape_map_view.scene.clear()
             self.shape_map_view.render_map(countries_dict)
+
+            self.time_map_view.scene.clear()
+            self.time_map_view.render_map(countries_dict)
+
+            self.flag_map_view.scene.clear()
+            self.flag_map_view.render_map(countries_dict)
             
             QMessageBox.information(self, "Success", "All progress has been reset!")
 
@@ -437,13 +461,27 @@ class ShapeQuizDialog(QDialog):
             
             reveal_text = (
                 f"Country: {current_target.name}\n"
-                f"Capital: {current_target.capital}\n"
-                f"Population: {current_target.population:,}\n"
-                f"Currencies: {current_target.currencies}\n"
-                f"Languages: {current_target.languages}\n"
             )
-            QMessageBox.information(self, "Correct Answer!", reveal_text)
+            if not current_target.capital or current_target.capital == "N/A":
+                reveal_text += "Capital: No capital\n"
+            else:
+                reveal_text += f"Capital: {current_target.capital}\n"
+                
+            reveal_text += f"Population: {current_target.population}\n"
 
+            if not current_target.currencies:
+                reveal_text += "Currency: No currency\n"
+            else:
+                reveal_text += f"Currencies: {current_target.currencies}\n"
+
+            if not current_target.languages:
+                reveal_text += "Language: No language\n"
+            else:
+                reveal_text += f"Languages: {current_target.languages}\n"
+
+            reveal_text += f"Country code: {current_target.cca3}\n"
+
+            QMessageBox.information(self, "Correct Answer!", reveal_text)
             self.next_question()
         else:
             self.score_label.setText(f"Score: {self.engine.score} | Incorrect!")
@@ -645,10 +683,26 @@ class FlagQuizDialog(QDialog):
             
             reveal_text = (
                 f"Country: {current_target.name}\n"
-                f"Capital: {current_target.capital}\n"
-                f"Population: {current_target.population:,}\n"
-                f"Currencies: {current_target.currencies}\n"
             )
+            if not current_target.capital or current_target.capital == "N/A":
+                reveal_text += "Capital: No capital\n"
+            else:
+                reveal_text += f"Capital: {current_target.capital}\n"
+                
+            reveal_text += f"Population: {current_target.population}\n"
+
+            if not current_target.currencies:
+                reveal_text += "Currency: No currency\n"
+            else:
+                reveal_text += f"Currencies: {current_target.currencies}\n"
+
+            if not current_target.languages:
+                reveal_text += "Language: No language\n"
+            else:
+                reveal_text += f"Languages: {current_target.languages}\n"
+
+            reveal_text += f"Country code: {current_target.cca3}\n"
+
             QMessageBox.information(self, "Correct Answer!", reveal_text)
             self.next_question()
         else:
