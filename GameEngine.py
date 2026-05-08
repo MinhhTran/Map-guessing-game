@@ -13,6 +13,7 @@ class GameEngine:
         self.session_queue = [] # remaining countries for shape quiz
         self.cca3_lookup = {c.cca3: c.name for c in countries_list if hasattr(c, 'cca3')} # convert code to normal name
         self.failed_attempts = 0
+        self.question_start_time = 0
 
         # Track progress separately for each game mode
         self.progress = {
@@ -88,6 +89,7 @@ class GameEngine:
             
         self.current_target = self.session_queue.pop()
         self.failed_attempts = 0
+        self.question_start_time = self.time_left
         return self.current_target
     
     def calculate_levenshtein(self, s1, s2):
@@ -121,7 +123,7 @@ class GameEngine:
         
         if user_guess == target_name:
             is_correct = True
-        # Fuzzy match for Time Attack (Levenshtein distance)
+        # Fuzzy match for time attack (Levenshtein distance)
         elif self.current_mode == 'time':
             distance = self.calculate_levenshtein(user_guess, target_name)
             threshold = 2
@@ -131,7 +133,18 @@ class GameEngine:
         if is_correct:
             # Prevent duplicate selections
             self.progress[self.current_mode].add(self.current_target.name)
-            self.score += 10 # placeholder scoring
+            base_points = 50
+            speed_bonus = 0
+            accuracy_bonus = 20
+
+            if self.current_mode == 'time':
+                time_spent = self.question_start_time - self.time_left
+                speed_bonus = max(0, 50 - (time_spent * 5))
+
+                distance = self.calculate_levenshtein(user_guess, target_name)
+                accuracy_bonus = max(0, 20 - (distance * 10))
+            
+            self.score += (base_points + speed_bonus + accuracy_bonus)
 
             # Update mastery level
             region = getattr(self.current_target, 'region', 'Unknown')
