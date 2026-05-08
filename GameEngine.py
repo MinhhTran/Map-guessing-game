@@ -207,6 +207,12 @@ class GameEngine:
             return list(self.progress[mode_name])
         return []
     
+    def skip_target(self):
+        if self.current_target:
+            # Insert at index 0 so it gets popped last
+            self.session_queue.insert(0, self.current_target)
+            self.failed_attempts = 0
+    
     def load_userdata(self):
         if os.path.exists('userdata.json'):
             try:

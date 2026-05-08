@@ -354,6 +354,7 @@ class MainWindow(QMainWindow):
         self.time_attack_dialog.guess_input.setEnabled(True)
         self.time_attack_dialog.submit_btn.setEnabled(True)
         self.time_attack_dialog.hint_btn.setEnabled(True)
+        self.time_attack_dialog.skip_btn.setEnabled(True)
         self.time_attack_dialog.info_label.setText("Game Restarted")
         self.time_attack_dialog.info_label.setStyleSheet("color: blue; font-weight: bold;")
         
@@ -404,9 +405,13 @@ class ShapeQuizDialog(QDialog):
         
         self.hint_btn = QPushButton("Hint")
         self.hint_btn.clicked.connect(self.show_hint)
+
+        self.skip_btn = QPushButton("Skip")
+        self.skip_btn.clicked.connect(self.skip_question)
         
         btn_layout.addWidget(self.submit_btn)
         btn_layout.addWidget(self.hint_btn)
+        btn_layout.addWidget(self.skip_btn)
         layout.addLayout(btn_layout)
 
     def closeEvent(self, event):
@@ -491,6 +496,11 @@ class ShapeQuizDialog(QDialog):
         hint = self.engine.get_hint()
         QMessageBox.information(self, "Hint", hint)
 
+    def skip_question(self):
+        self.engine.skip_target()
+        self.guess_input.clear()
+        self.next_question()
+
 class TimeAttackDialog(QDialog):
     def __init__(self, parent=None, engine=None, map_view=None):
         super().__init__(parent)
@@ -543,9 +553,13 @@ class TimeAttackDialog(QDialog):
         
         self.hint_btn = QPushButton("Hint")
         self.hint_btn.clicked.connect(self.show_hint)
+
+        self.skip_btn = QPushButton("Skip")
+        self.skip_btn.clicked.connect(self.skip_question)
         
         btn_layout.addWidget(self.submit_btn)
         btn_layout.addWidget(self.hint_btn)
+        btn_layout.addWidget(self.skip_btn)
         layout.addLayout(btn_layout)
 
     def closeEvent(self, event):
@@ -601,8 +615,14 @@ class TimeAttackDialog(QDialog):
         self.guess_input.setDisabled(True)
         self.submit_btn.setDisabled(True)
         self.hint_btn.setDisabled(True)
+        self.skip_btn.setDisabled(True)
         QMessageBox.information(self, "Time's Up!", f"Game Over!\nFinal Score: {self.engine.score}")
         self.hide()
+
+    def skip_question(self):
+        self.engine.skip_target()
+        self.guess_input.clear()
+        self.next_question()
 
 class FlagQuizDialog(QDialog):
     def __init__(self, parent=None, engine=None, map_view=None):
@@ -639,9 +659,13 @@ class FlagQuizDialog(QDialog):
         
         self.hint_btn = QPushButton("Hint")
         self.hint_btn.clicked.connect(self.show_hint)
+
+        self.skip_btn = QPushButton("Skip")
+        self.skip_btn.clicked.connect(self.skip_question)
         
         btn_layout.addWidget(self.submit_btn)
         btn_layout.addWidget(self.hint_btn)
+        btn_layout.addWidget(self.skip_btn)
         layout.addLayout(btn_layout)
 
     def closeEvent(self, event):
@@ -712,6 +736,11 @@ class FlagQuizDialog(QDialog):
     def show_hint(self):
         hint = self.engine.get_hint()
         QMessageBox.information(self, "Hint", hint)
+
+    def skip_question(self):
+        self.engine.skip_target()
+        self.guess_input.clear()
+        self.next_question()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
